@@ -164,7 +164,9 @@ entry."
   "Return the list of absolute directory names to be added to
 `load-path' by the named PACKAGE."
   (let* ((source   (el-get-package-def package))
-	 (el-path  (el-get-flatten (or (plist-get source :load-path) ".")))
+	 (el-path  (if (plist-member source :load-path)
+                       (el-get-flatten (plist-get source :load-path))
+                     '(".")))
          (pkg-dir (el-get-package-directory package)))
     (mapcar (lambda (p) (expand-file-name p pkg-dir)) el-path)))
 
@@ -174,6 +176,8 @@ given method."
   (let* ((method  (if (keywordp method-name) method-name
                     (intern (concat ":" (format "%s" method-name)))))
          (actions (plist-get el-get-methods method)))
+    (assert actions nil
+            "Unknown recipe type: %s" method)
     (plist-get actions action)))
 
 (defun el-get-check-init ()
