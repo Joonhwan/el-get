@@ -7,12 +7,9 @@
        :build/berkeley-unix `,(mapcar
                                (lambda (target)
                                  (list "gmake" target (concat "EMACS=" (shell-quote-argument el-get-emacs))))
-                               '("clean" "all"))
+                               '("oldorg"))
        :build `,(mapcar
                  (lambda (target)
                    (list "make" target (concat "EMACS=" (shell-quote-argument el-get-emacs))))
-                 '("clean" "all"))
-       :load-path ("." "lisp" "contrib/lisp")
-       :autoloads nil
-       :features org-install)
-
+                 '("oldorg"))
+       :load-path ("." "lisp" "contrib/lisp"))

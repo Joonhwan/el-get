@@ -56,8 +56,8 @@ call for doing the named package action in the given method.")
   (and (el-get-method name :install) t))
 
 (defun* el-get-register-method (name &key install update remove
-                                     install-hook remove-hook compute-checksum
-                                     guess-website)
+                                     install-hook update-hook remove-hook
+                                     compute-checksum guess-website)
   "Register the method for backend NAME, with given functions"
   (let (method-def)
     (loop for required-arg in '(install update remove)
@@ -67,7 +67,7 @@ call for doing the named package action in the given method.")
                    (plist-put method-def
                               (intern (format ":%s" required-arg))
                               (symbol-value required-arg))))
-    (loop for optional-arg in '(install-hook remove-hook
+    (loop for optional-arg in '(install-hook update-hook remove-hook
                                 compute-checksum guess-website)
         if (symbol-value optional-arg)
         do (setq method-def
@@ -133,22 +133,32 @@ returning a list that contains it (and only it)."
 (defun el-get-source-name (source)
   "Return the package name (stringp) given an `el-get-sources'
 entry."
-  (if (symbolp source) (symbol-name source)
-    (format "%s" (plist-get source :name))))
+  (if (listp source)
+      (format "%s" (or (plist-get source :name)
+                       (error "Source does not have a :name property: %S" source)))
+    (symbol-name source)))
 
 
 ;;
 ;; Common support bits
 ;;
-(defun el-get-rmdir (package &rest ignored)
+(defun el-get-rmdir (package url post-remove-fun)
   "Just rm -rf the package directory. If it is a symlink, delete it."
-  (let* ((pdir (expand-file-name "." (el-get-package-directory package))))
+  (let* ((edir (expand-file-name el-get-dir))
+         (pdir (expand-file-name "." (el-get-package-directory package))))
+    ;; check that we're all set
+    (when (or (string= edir pdir)    ; package is "", or such like
+              ;; error if pdir is not a subdirectory of el-get-dir
+              (not (string= edir (substring pdir 0 (length edir)))))
+      (error "el-get-rmdir: directory '%s' of package '%s' is not inside `el-get-dir' ('%s')."
+             pdir package el-get-dir))
     (cond ((file-symlink-p pdir)
            (delete-file pdir))
           ((file-directory-p pdir)
            (delete-directory pdir 'recursive))
           ((file-exists-p pdir)
-           (delete-file pdir)))))
+           (delete-file pdir)))
+    (funcall post-remove-fun package)))
 
 
 ;;
@@ -386,7 +396,12 @@ makes it easier to conditionally splice a command into the list.
                     (error "el-get: %s %s" cname errorm))
                   (when cbuf (kill-buffer cbuf))
                   (if next
-                      (el-get-start-process-list package next final-func)
+                      ;; Prevent stack overflow on very long command
+                      ;; lists. This allows
+                      ;; `el-get-start-process-list' (but not other
+                      ;; functions) to recurse indefinitely.
+                      (let ((max-specpdl-size (+ 100 max-specpdl-size)))
+                        (el-get-start-process-list package next final-func))
                     (when (functionp final-func)
                       (funcall final-func package)))))
             ;; async case
