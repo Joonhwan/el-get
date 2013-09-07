@@ -10,7 +10,7 @@
 ;; This file is NOT part of GNU Emacs.
 ;;
 ;; Install
-;;     Please see the README.asciidoc file from the same distribution
+;;     Please see the README.md file from the same distribution
 
 ;;
 ;;
@@ -81,24 +81,30 @@ matching REGEX with TYPE and ARGS as parameter."
          (name (plist-get def :name))
          (website (plist-get def :website))
          (descr (plist-get def :description))
-         (type (plist-get def :type))
+         (type (el-get-package-method def))
+         (builtin (plist-get def :builtin))
+         (minimum-version (plist-get def :minimum-emacs-version))
          (url (plist-get def :url))
          (depends (plist-get def :depends)))
-    (princ (format "%s is an `el-get' package. It is currently %s " name
-                   (if status status "not installed")))
-
-    (cond
-     ((string= status "installed")
-      (el-get-describe-princ-button "[update]" "\\[\\([^]]+\\)\\]"
-                                    'el-get-help-update package)
-      (el-get-describe-princ-button "[remove]" "\\[\\([^]]+\\)\\]"
-                                    'el-get-help-remove package))
-     ((string= status "required")
-      (el-get-describe-princ-button "[update]" "\\[\\([^]]+\\)\\]"
-                                    'el-get-help-update package))
-     (t
-      (el-get-describe-princ-button "[install]" "\\[\\([^]]+\\)\\]"
-                                    'el-get-help-install package)))
+    (princ (format "%s is an `el-get' package.  " name))
+    (if (eq type 'builtin)
+        (princ (format "It is built-in since Emacs %s" builtin))
+      (princ (format "It is currently %s "
+                     (if status
+                         status
+                       "not installed")))
+      (cond
+       ((string= status "installed")
+        (el-get-describe-princ-button "[update]" "\\[\\([^]]+\\)\\]"
+                                      'el-get-help-update package)
+        (el-get-describe-princ-button "[remove]" "\\[\\([^]]+\\)\\]"
+                                      'el-get-help-remove package))
+       ((string= status "required")
+        (el-get-describe-princ-button "[update]" "\\[\\([^]]+\\)\\]"
+                                      'el-get-help-update package))
+       (t
+        (el-get-describe-princ-button "[install]" "\\[\\([^]]+\\)\\]"
+                                      'el-get-help-install package))))
     (princ ".\n\n")
 
     (let ((website (or website
@@ -121,8 +127,16 @@ matching REGEX with TYPE and ARGS as parameter."
          (format "`%s'" depends) "`\\([^`']+\\)"
          'el-get-help-describe-package depends))
       (princ ".\n"))
-    (princ (format "The default installation method is %s %s\n\n" type
-                   (if url (format "from %s" url) "")))
+    (when minimum-version
+      (princ (format "Requires minimum Emacs version: %s." minimum-version))
+      (when (version-list-< (version-to-list emacs-version)
+                            (el-get-version-to-list minimum-version))
+        (princ (format "  Warning: Your Emacs is too old (%s)!" emacs-version)))
+      (princ "\n"))
+    (if (eq type 'builtin)
+        (princ (format "The package is built-in since Emacs %s.\n\n" builtin))
+      (princ (format "The default installation method is %s%s.\n\n" type
+                     (if url (format " from %s" url) ""))))
     (princ "Full definition")
     (let ((file (el-get-recipe-filename package)))
       (if (not file)
@@ -276,7 +290,9 @@ in el-get package menu."
   (define-key el-get-package-menu-mode-map "q" 'quit-window))
 
 (defun el-get-package-menu-mode ()
-  "Major mode for browsing a list of packages."
+  "Major mode for browsing a list of packages.
+
+\\{el-get-package-menu-mode-map}"
   (kill-all-local-variables)
   (use-local-map el-get-package-menu-mode-map)
   (setq major-mode 'el-get-package-menu-mode)

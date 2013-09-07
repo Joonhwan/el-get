@@ -1,8 +1,8 @@
 (:name emacs-jabber
        :description "A minimal jabber client"
        :type git
-       :url "git://emacs-jabber.git.sourceforge.net/gitroot/emacs-jabber/emacs-jabber"
+       :url "git://git.code.sf.net/p/emacs-jabber/git"
        :info "."
        :load-path (".")
        :features jabber-autoloads
-       :build ("autoreconf -i" "./configure" "make" "mv jabber.info emacs-jabber.info" ))
+       :build (("autoreconf" "-i") "./configure" "make" ("mv" "jabber.info" "emacs-jabber.info")))

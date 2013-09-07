@@ -10,7 +10,7 @@
 ;; This file is NOT part of GNU Emacs.
 ;;
 ;; Install
-;;     Please see the README.asciidoc file from the same distribution
+;;     Please see the README.md file from the same distribution
 
 ;;; Commentary:
 ;;
@@ -25,19 +25,18 @@
 (require 'el-get-byte-compile)
 
 (defcustom el-get-recipe-path-emacswiki
-  (concat (file-name-directory el-get-dir) "el-get/recipes/emacswiki/")
+  (expand-file-name "el-get/recipes/emacswiki/" el-get-dir)
   "Define where to keep a local copy of emacswiki recipes"
   :group 'el-get
   :type 'directory)
 
 (defcustom el-get-recipe-path-elpa
-  (concat (file-name-directory el-get-dir) "el-get/recipes/elpa/")
+  (expand-file-name "el-get/recipes/elpa/" el-get-dir)
   "Define where to keep a local copy of elpa recipes"
   :group 'el-get
   :type 'directory)
 
-
-(defcustom el-get-recipe-path
+(defvar el-get-recipe-path
   (list (concat (file-name-directory el-get-script) "recipes")
         el-get-recipe-path-elpa
         el-get-recipe-path-emacswiki)
@@ -45,9 +44,14 @@
 
 Directories that contain automatically-generated recipes, such as
 `el-get-recipe-path-emacswiki' and `el-get-recipe-path-elpa',
-should be placed last in this list."
-  :group 'el-get
-  :type '(repeat (directory)))
+should be placed last in this list.
+
+This variable is not customizable, as it needs to be set before
+el-get is loaded, while customizations should be loaded after
+el-get, so that they can affect pacakages loaded by el-get.
+It is recommended to add new directories using code like:
+
+  (add-to-list 'el-get-recipe-path \"~/.emacs.d/el-get-user/recipes/\")")
 
 (defcustom el-get-user-package-directory nil
   "Define where to look for init-pkgname.el configurations. Disabled if nil."
@@ -144,7 +148,7 @@ in `el-get-recipe-path' in order."
     (append
      el-get-sources
      (remove-if (lambda (recipe) (member (el-get-source-name recipe) packages))
-                (el-get-read-all-recipe-files)))))
+                (remove-if 'null (el-get-read-all-recipe-files))))))
 
 (defun el-get-package-def (package)
   "Return a single `el-get-sources' entry for PACKAGE."
@@ -177,7 +181,10 @@ return 'builtin."
                 package-or-source))
          (builtin (plist-get def :builtin)))
 
-    (if (and builtin (>= emacs-major-version builtin))
+    (when (integerp builtin)
+      (warn "Integer argument for :builtin is obsolete.  Use strings instead.")
+      (setq builtin (number-to-string builtin)))
+    (if (and builtin (version<= builtin emacs-version))
         'builtin
       (plist-get def :type))))
 
@@ -292,7 +299,7 @@ object or a file path."
                           "* Property %S is for user.  Use %S instead.\n"
                           key alt))
                  (incf numerror)))
-      (destructuring-bind (&key type url autoloads features
+      (destructuring-bind (&key type url autoloads features builtin
                                 &allow-other-keys)
           recipe
         ;; Is github type used?
@@ -308,7 +315,11 @@ object or a file path."
         (when features
           (insert "* WARNING: Are you sure you need features?
   If this library has `;;;###autoload' comment (a.k.a autoload cookie),
-  you don't need `:features'.\n")))
+  you don't need `:features'.\n"))
+        ;; Check if `:builtin' is used with an integer
+        (when (integerp builtin)
+          (insert "* WARNING: Usage of integers for :builtin is obsolete.
+  Use a version string like \"24.3\" instead.\n")))
       ;; Check for required properties.
       (loop for key in '(:description :name)
             unless (plist-get recipe key)

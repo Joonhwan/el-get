@@ -5,7 +5,7 @@ START-INFO-DIR-ENTRY
 * El-Get: (el-get).        Using el-get to manage your Emacs Extensions.
 END-INFO-DIR-ENTRY
 
-   Copyright (C) 2010, 2011, 2012 Dimitri Fontaine.
+   Copyright (C) 2010, 2011, 2012, 2013 Dimitri Fontaine.
 
                  DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
              Version 2, December 2004
@@ -63,7 +63,7 @@ function for you to setup the extension. Or call it a package.
    El-Get Version String (`M-x el-get-version') are now inspired by how
 Emacs itself numbers its versions.  First is the major version number,
 then a dot, then the minor version number.  The minor version number is
-0 when still developping the next major version.  So 3.0 is a developer
+0 when still developing the next major version.  So 3.0 is a developer
 release while 3.1 is a stable release.
 
    Please note that this versioning policy has been picked while backing
@@ -363,6 +363,7 @@ emacs startup the installed packages are initialized.
          (goto-char (point-max))
          (eval-print-last-sexp)))
 
+     (add-to-list 'el-get-recipe-path "~/.emacs.d/el-get-user/recipes")
      (el-get 'sync)
 
    The `el-get' command will check that each and every package is
@@ -424,7 +425,9 @@ When you are sharing your emacs setup between several machines (work
 and home destops, laptop, etc); it's usual to manage your `.emacs.d'
 setup in a distributed repository (such as `git'). El-Get then provides
 an easy canonical list of packages you depend on to run emacs, and this
-documentation is usable as-is.
+documentation is usable as-is. It is recommended that you not store the
+El-Get tree in git, however; to prevent this, so you can add a pattern
+`/el-get' to `.emacs.d/.gitignore'.
 
      (add-to-list 'load-path "~/.emacs.d/el-get/el-get")
      (require 'el-get)
@@ -614,10 +617,12 @@ it. After that the recipe content is saved in the status file and
 cached, so that you can still start Emacs even if you remove the recipe
 file.
 
-   The variable `el-get-recipe-path' is a list of directory paths where
-to look for recipe files, in order. The recipe for a package `example'
+   The variable `el-get-recipe-path' is a list of directory paths to
+search for recipe files, in order. The recipe for a package `example'
 must be named `example.rcp'. The first file named that way in the
-`el-get-recipe-path' variable is used as the recipe.
+`el-get-recipe-path' variable is used as the recipe. If you need to
+change it, you should do so immediately before running `el-get'; see
+the example in *Note Basic Setup::.
 
    To check which recipe is used for a given package, use either the
 `M-x el-get-describe' or `M-x el-get-find-recipe-file' command.
@@ -720,10 +725,13 @@ provided by `el-get' recipes locally.
      before the package is installed.
 
 `:builtin'
-     Emacs major version (see EMACS-MAJOR-VERSION) from which Emacs
-     includes the recipe as a builtin.  For example, `package.el' (the
-     implementation of ELPA) is part fo Emacs24 but needs an external
-     recipe for previous major versions.
+     A string containing the Emacs version (see EMACS-MAJOR-VERSION
+     variable) from which Emacs includes the recipe as a builtin.  For
+     example, `package.el' (the implementation of ELPA) is part of
+     Emacs 24 but needs an external recipe for previous major versions.
+
+     Unlike the builtin `:type' no `:build' or `:info' properties are
+     executed if this matches.
 
 `:pkgname'
      The name of the package for the underlying package management
@@ -1018,37 +1026,37 @@ convenient if you want to check multiple recipes at once.
 
 
 Tag Table:
-Node: Top763
-Node: Introduction1228
-Node: Acknowledgments2303
-Node: Glossary3753
-Ref: Glossary - Init4849
-Ref: Glossary - Install5151
-Ref: Glossary - Recipe6238
-Ref: Glossary - Status6662
-Ref: Glossary - Update6920
-Node: Installing7158
-Node: Install the developper version8031
-Node: Skip Emacswiki recipes when installing8776
-Node: Usage9612
-Node: Setup11901
-Node: Basic Setup12297
-Node: The el-get function13536
-Node: Distributed Setup14812
-Node: Setup Customization16706
-Node: User Init17852
-Node: Before and After properties18539
-Node: Initialization files20047
-Node: Recipes20700
-Node: Organizing recipes21175
-Node: Getting more recipes22690
-Node: Overriding package files23388
-Node: Authoring Recipes23771
-Node: Recipe format24386
-Node: Dependencies34045
-Node: Byte Compilation34391
-Node: Autoloads34957
-Node: Build36083
-Node: Recipe checker37055
+Node: Top769
+Node: Introduction1234
+Node: Acknowledgments2308
+Node: Glossary3758
+Ref: Glossary - Init4854
+Ref: Glossary - Install5156
+Ref: Glossary - Recipe6243
+Ref: Glossary - Status6667
+Ref: Glossary - Update6925
+Node: Installing7163
+Node: Install the developper version8036
+Node: Skip Emacswiki recipes when installing8781
+Node: Usage9617
+Node: Setup11906
+Node: Basic Setup12302
+Node: The el-get function13613
+Node: Distributed Setup14889
+Node: Setup Customization16931
+Node: User Init18077
+Node: Before and After properties18764
+Node: Initialization files20272
+Node: Recipes20925
+Node: Organizing recipes21400
+Node: Getting more recipes23031
+Node: Overriding package files23729
+Node: Authoring Recipes24112
+Node: Recipe format24727
+Node: Dependencies34516
+Node: Byte Compilation34862
+Node: Autoloads35428
+Node: Build36554
+Node: Recipe checker37526
 
 End Tag Table

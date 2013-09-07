@@ -10,7 +10,7 @@
 ;; This file is NOT part of GNU Emacs.
 ;;
 ;; Install
-;;     Please see the README.asciidoc file from the same distribution
+;;     Please see the README.md file from the same distribution
 
 (require 'el-get-core)
 (require 'package nil t)
@@ -45,10 +45,11 @@ PACKAGE isn't currently installed by ELPA."
                       (expand-file-name
                        (file-name-as-directory package-user-dir))))))))
 
-	 (realname (try-completion pname l)))
+	 (realnames (all-completions pname l)))
 
-    (if realname (concat (file-name-as-directory package-user-dir) realname)
-      realname)))
+    (when realnames
+      (concat (file-name-as-directory package-user-dir) (car realnames)))))
+
 
 (defun el-get-elpa-package-repo (package)
   "Get the ELPA repository cons cell for PACKAGE.
@@ -119,11 +120,15 @@ the recipe, then return nil."
 (defun el-get-elpa-update-available-p (package)
   "Returns t if PACKAGE has an update available in ELPA."
   (assert (el-get-package-is-installed package) nil
-          (sprintf "Cannot update non-installed ELPA package %s" package))
-  (let ((installed-version
-         (package-desc-vers (cdr (assq package package-alist))))
-        (available-version
-         (package-desc-vers (cdr (assq package package-archive-contents)))))
+          (format "Cannot update non-installed ELPA package %s" package))
+  (let* ((pkg-version
+          (if (fboundp 'package-desc-version) ;; new in Emacs 24.4
+              #'(lambda (pkg) (package-desc-version (car pkg)))
+            #'package-desc-vers))
+         (installed-version
+          (funcall pkg-version (cdr (assq package package-alist))))
+         (available-version
+          (funcall pkg-version (cdr (assq package package-archive-contents)))))
     (version-list-< installed-version available-version)))
 
 (defun el-get-elpa-update (package url post-update-fun)
@@ -150,12 +155,31 @@ the recipe, then return nil."
 
 (add-hook 'el-get-elpa-remove-hook 'el-get-elpa-post-remove)
 
+(defun el-get-elpa-guess-website (package)
+  "Guess website for elpa PACKAGE."
+  (let* ((repo (el-get-elpa-package-repo package))
+         (repo-name (car repo))
+         (repo-url (cdr repo))
+         (package (el-get-as-string package)))
+    (cond
+     ((or (not repo)
+          (string= "gnu" repo-name)
+          (string-match-p "elpa\\.gnu\\.org" repo-url))
+      (concat "http://elpa.gnu.org/packages/" package))
+     ((or (string= "marmalade" repo-name)
+          (string-match-p "marmalade-repo\\.org" repo-url))
+      (concat "http://marmalade-repo.org/packages/" package))
+     ((or (string= "melpa" repo-name)
+          (string-match-p "melpa.milkbox.net" repo-url))
+      (concat "http://melpa.milkbox.net/#" package)))))
+
 (el-get-register-method :elpa
   :install #'el-get-elpa-install
   :update #'el-get-elpa-update
   :remove #'el-get-elpa-remove
   :install-hook #'el-get-elpa-install-hook
-  :remove-hook #'el-get-elpa-remove-hook)
+  :remove-hook #'el-get-elpa-remove-hook
+  :guess-website #'el-get-elpa-guess-website)
 
 ;;;
 ;;; Functions to maintain a local recipe list from ELPA
@@ -172,21 +196,34 @@ DO-NOT-UPDATE will not update the package archive contents before running this."
                         el-get-recipe-path-elpa))
         (coding-system-for-write 'utf-8)
         pkg package description)
-    (when (or (not package-archive-contents) (and package-archive-contents (not do-not-update)))
+
+    (when (or (not package-archive-contents)
+              (and package-archive-contents
+                   (not do-not-update)))
       (package-refresh-contents))
-    (unless (file-directory-p target-dir) (make-directory target-dir 'recursive))
+
+    (unless (file-directory-p target-dir)
+      (make-directory target-dir 'recursive))
+
     (mapc (lambda (pkg)
-	    (let* ((package (format "%s" (car pkg)))
-		   (pkg-desc (cdr pkg))
-		   (description (package-desc-doc pkg-desc)))
-              (with-temp-file (expand-file-name (concat package ".rcp")
+	    (let* ((package     (format "%s" (car pkg)))
+		   (pkg-desc    (cdr pkg))
+		   (description (package-desc-doc pkg-desc))
+		   (depends     (mapcar #'car (package-desc-reqs pkg-desc)))
+		   (repo
+                    (assoc (aref pkg-desc (- (length pkg-desc) 1))
+                           package-archives)))
+	      (with-temp-file (expand-file-name (concat package ".rcp")
 						target-dir)
 		(message "%s:%s" package description)
-                (insert
-                 (format
-                  "(:name %s\n:auto-generated t\n:type elpa\n:description \"%s\")\n"
-                  package description))
-                (indent-region (point-min) (point-max)))))
+		(insert
+		 (format
+		  "(:name %s\n:auto-generated t\n:type elpa\n:description \"%s\"\n:repo %S\n"
+		  package description repo))
+		(when depends
+		  (insert (format ":depends %s\n" depends)))
+		(insert ")")
+		(indent-region (point-min) (point-max)))))
 	  package-archive-contents)))
 
 (provide 'el-get-elpa)
